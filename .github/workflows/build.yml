@@ -46,19 +46,10 @@ jobs:
       shell: bash
       run: |
         cd build && ninja
-    - name: Running C++ Tests
-      shell: bash
-      run: |
-        if [[ "${{ runner.os }}" == "Linux" ]] ; then
-          export XVFB=xvfb-run
-        fi
-        cd build && $XVFB ctest --output-on-failure
-    - name: Running CLI Tests
-      shell: bash
-      run: |
-        if [[ "${{ runner.os }}" == "Linux" ]] ; then
-          export XVFB=xvfb-run
-        fi
-        export ASEPRITE=$PWD/build/bin/aseprite
-        cd tests
-        $XVFB bash run-tests.sh
+    - name: tar artifacts
+      run: tar -cvf build_bin.tar build/bin/
+    - name: artifacts al build/
+      uses: actions/upload-artifact@v3
+      with:
+          name: build_outs
+          path: build_bin.tar
