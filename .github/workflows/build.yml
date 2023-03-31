@@ -7,7 +7,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest]
-        build_type: [Debug]
+        build_type: [RelWithDebInfo]
         enable_ui: [on]
     steps:
     - uses: actions/checkout@v2
@@ -45,9 +45,9 @@ jobs:
     - name: Compiling
       shell: bash
       run: |
-        cd build && ninja
+        cd build && ninja -j 8
     - name: artifacts al build/
       uses: actions/upload-artifact@v3
       with:
           name: build_outs
-          path: build/bin/*ase*
+          path: build/bin/*asep*
