@@ -46,10 +46,8 @@ jobs:
       shell: bash
       run: |
         cd build && ninja
-    - name: tar artifacts
-      run: tar -cvf build_bin.tar build/bin/
     - name: artifacts al build/
       uses: actions/upload-artifact@v3
       with:
           name: build_outs
-          path: build_bin.tar
+          path: build/bin/*
