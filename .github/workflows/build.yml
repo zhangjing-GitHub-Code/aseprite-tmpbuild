@@ -8,7 +8,7 @@ jobs:
       matrix:
         os: [windows-latest]
         build_type: [Debug]
-        enable_ui: [off]
+        enable_ui: [off,on]
     steps:
     - uses: actions/checkout@v2
       with:
