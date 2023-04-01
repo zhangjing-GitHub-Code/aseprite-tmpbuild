@@ -41,6 +41,28 @@ jobs:
           -DENABLE_TESTS=ON \
           -DENABLE_UI=${{ matrix.enable_ui }} \
           -DENABLE_CCACHE=$enable_ccache
+    - name: Cache third-party
+      uses: actions/cache@v3
+      with:
+        key: 3pt-b
+        restore-keys: 3pt-b
+        path: build/third_party
+    - name: Cache third-party r
+      uses: actions/cache@v3
+      with:
+        key: 3pt
+        path: third_party
+    - name: Cache laf
+      uses: actions/cache@v3
+      with:
+        key: laf-b
+        restore-keys: laf-b
+        path: laf/
+    - name: Cache laf r
+      uses: actions/cache@v3
+      with:
+        key: laf
+        path: laf/
     - name: Compiling
       shell: bash
       run: |
