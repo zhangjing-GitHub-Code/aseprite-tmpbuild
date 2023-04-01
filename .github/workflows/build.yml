@@ -38,7 +38,6 @@ jobs:
         fi
         cmake -S . -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-          -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9 \
           -DENABLE_TESTS=ON \
           -DENABLE_UI=${{ matrix.enable_ui }} \
           -DENABLE_CCACHE=$enable_ccache
@@ -51,3 +50,9 @@ jobs:
       with:
           name: build_outs
           path: build/bin/*asep*
+    - name: artifact build/data dir
+      uses: actions/upload-artifact@v3
+      with:
+          name: prog_data
+          path: build/bin/data/*
+
