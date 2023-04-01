@@ -27,6 +27,11 @@ jobs:
           sudo apt-get install -y \
             libx11-dev libxcursor-dev libxi-dev
         fi
+    - name: Get SKIA
+      if: runner.os == 'Windows'
+      run: |
+        curl https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-Windows-Release-x64.zip
+        unzip Skia*64.zip -d libSKIA
     - name: Generating Makefiles
       shell: bash
       run: |
@@ -38,6 +43,10 @@ jobs:
         cmake -S . -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
           -DENABLE_TESTS=ON \
+          -DLAF_BACKEND=skia \
+          -DSKIA_DIR=.\libSKIA \
+          -DSKIA_LIBRARY_DIR=.\libSKIA\out\Release-x64 \
+          -DSKIA_LIBRARY=.\libSKIA\out\Release-x64\skia.lib \
           -DENABLE_CCACHE=$enable_ccache
     - name: Cache third-party
       uses: actions/cache@v3
