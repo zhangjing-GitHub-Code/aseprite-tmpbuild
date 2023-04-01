@@ -31,7 +31,7 @@ jobs:
       if: runner.os == 'Windows'
       run: |
         curl https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-Windows-Release-x64.zip
-        unzip Skia*64.zip -d libSKIA
+        unzip Skia-Windows-Release-x64.zip -d libSKIA
     - name: Generating Makefiles
       shell: bash
       run: |
