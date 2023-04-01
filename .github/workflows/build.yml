@@ -46,27 +46,37 @@ jobs:
       with:
         key: 3pt-b
         restore-keys: 3pt-b
-        path: build/third_party
+        path: build/third_party/*/*.obj
     - name: Cache third-party r
       uses: actions/cache@v3
       with:
         key: 3pt
-        path: third_party
+        path: third_party/*/*.obj
     - name: Cache laf
       uses: actions/cache@v3
       with:
         key: laf-b
         restore-keys: laf-b
-        path: laf/
+        path: build/laf/*/*.obj
     - name: Cache laf r
       uses: actions/cache@v3
       with:
         key: laf
-        path: laf/
+        path: laf/*/*.obj
+    - name: Cache objs
+      uses: actions/cache@v3
+      with:
+        key: arc-cmobj
+        path: build/src/app/CMakeFiles/*/*.obj
+    - name: Cache objs2
+      uses: actions/cache@v3
+      with:
+        key: arc-cmobj-r
+        path: src/app/CMakeFiles/*/*.obj
     - name: Compiling
       shell: bash
       run: |
-        cd build && ninja -j 8
+        cd build && ninja -j 4
     - name: artifacts al build/
       uses: actions/upload-artifact@v3
       with:
