@@ -57,9 +57,9 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
           -DENABLE_TESTS=ON \
           -DLAF_BACKEND=skia \
-          -DSKIA_DIR=.\libSKIA \
-          -DSKIA_LIBRARY_DIR=.\libSKIA\out\Release-x64 \
-          -DSKIA_LIBRARY=.\libSKIA\out\Release-x64\skia.lib \
+          -DSKIA_DIR=./libSKIA \
+          -DSKIA_LIBRARY_DIR=./libSKIA/out/Release-x64 \
+          -DSKIA_LIBRARY=./libSKIA/out/Release-x64/skia.lib \
           -DENABLE_CCACHE=$enable_ccache
     - name: Cache third-party
       uses: actions/cache@v3
