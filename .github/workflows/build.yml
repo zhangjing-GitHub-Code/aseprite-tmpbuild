@@ -27,11 +27,24 @@ jobs:
           sudo apt-get install -y \
             libx11-dev libxcursor-dev libxi-dev
         fi
+    - name: Download GitHub Release
+      # You may pin to the exact commit or the version.
+      # uses: Legion2/download-release-action@68df3d242858e28a7e6d8b9838a3e6730cdfc422
+      uses: Legion2/download-release-action@v2.1.0
+      with:
+        # The repository from where to download the files. Given as <user>/<repository>
+        repository: aseprite/skia
+        # The version tag of the release
+        tag: m102-861e4743af
+        # The file which should be downloaded.
+        file: Skia-Windows-Release-x64.zip
+        # download directory
+        path: ./
     - name: Get SKIA
       if: runner.os == 'Windows'
       run: |
-        curl -o SKIAa.zip https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-Windows-Release-x64.zip
-        unzip SKIAa.zip -d libSKIA
+        #curl -o SKIAa.zip https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-Windows-Release-x64.zip
+        unzip Skia-Windows-Release-x64.zip -d libSKIA
     - name: Generating Makefiles
       shell: bash
       run: |
