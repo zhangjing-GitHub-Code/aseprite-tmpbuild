@@ -8,7 +8,6 @@ jobs:
       matrix:
         os: [windows-latest]
         build_type: [RelWithDebInfo]
-        enable_ui: [on]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -19,7 +18,7 @@ jobs:
     - name: Workaround for windows-2022 and cmake 3.25.0
       if: runner.os == 'Windows'
       shell: bash
-      run: rm -rf C:/Strawberry/
+      run: mv C:/Strawberry/ C:/fuckup.no/
     - name: Install Dependencies
       shell: bash
       run: |
@@ -39,7 +38,6 @@ jobs:
         cmake -S . -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
           -DENABLE_TESTS=ON \
-          -DENABLE_UI=${{ matrix.enable_ui }} \
           -DENABLE_CCACHE=$enable_ccache
     - name: Cache third-party
       uses: actions/cache@v3
@@ -67,7 +65,7 @@ jobs:
       uses: actions/cache@v3
       with:
         key: arc-cmobj
-        path: build/src/app/CMakeFiles/*/*.obj
+        path: ./*/src/app/CMakeFiles/*/*.obj
     - name: Cache objs2
       uses: actions/cache@v3
       with:
@@ -81,7 +79,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
           name: build_outs
-          path: build/bin/*asep*
+          path: build/bin/*asep*exe
     - name: artifact build/data dir
       uses: actions/upload-artifact@v3
       with:
