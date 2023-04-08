@@ -76,7 +76,8 @@ jobs:
     - name: Cache objs2
       uses: actions/cache@v3
       with:
-        key: arc-cmobj-r
+        key: opbj-exes-cache
+        restore-key: obj2
         path: |
           src/app/CMakeFiles/*/*.obj
           src/app/CMakeFiles/app-lib.dir/script/*.obj
