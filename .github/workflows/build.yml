@@ -92,7 +92,19 @@ jobs:
       uses: actions/cache@v3
       with:
         key: arc-cmobj-r
-        path: src/app/CMakeFiles/*/*.obj
+        path: |
+          src/app/CMakeFiles/*/*.obj
+          src/app/CMakeFiles/app-lib.dir/script/*.obj
+          build/CMakeCache.txt
+          CMakeCache.txt
+          src/CMakeCache.txt
+          third_party/IXWebSocket/CMakeFiles/ixwebsocket.dir/ixwebsocket/*.cpp.obj
+          third_party/libarchive/libarchive/CMakeFiles/archive_static.dir/*.obj
+          third_party/jpeg/CMakeFiles/jpeg.dir/*.obj
+          third_party/*/*.exe
+          lib/
+          src/doc/CMakeFiles/doc-lib.dir/*.obj
+          src/ui/CMakeFiles/ui-lib.dir/*.cpp.obj
     - name: Compiling
       shell: bash
       run: |
