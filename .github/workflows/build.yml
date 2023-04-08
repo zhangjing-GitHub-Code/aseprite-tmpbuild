@@ -45,22 +45,7 @@ jobs:
       run: |
         #curl -o SKIAa.zip https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-Windows-Release-x64.zip
         unzip Skia-Windows-Release-x64.zip -d libSKIA
-    - name: Generating Makefiles
-      shell: bash
-      run: |
-        if [[ "${{ runner.os }}" == "Windows" ]] ; then
-          export enable_ccache=off
-        else
-          export enable_ccache=on
-        fi
-        cmake -S . -B build -G Ninja \
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-          -DENABLE_TESTS=ON \
-          -DLAF_BACKEND=skia \
-          -DSKIA_DIR=./libSKIA \
-          -DSKIA_LIBRARY_DIR=./libSKIA/out/Release-x64 \
-          -DSKIA_LIBRARY=./libSKIA/out/Release-x64/skia.lib \
-          -DENABLE_CCACHE=$enable_ccache
+
     - name: Cache third-party
       uses: actions/cache@v3
       with:
@@ -88,6 +73,22 @@ jobs:
       with:
         key: arc-cmobj
         path: ./*/src/app/CMakeFiles/*/*.obj
+    - name: Generating Makefiles
+      shell: bash
+      run: |
+        if [[ "${{ runner.os }}" == "Windows" ]] ; then
+          export enable_ccache=off
+        else
+          export enable_ccache=on
+        fi
+        cmake -S . -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DENABLE_TESTS=ON \
+          -DLAF_BACKEND=skia \
+          -DSKIA_DIR=./libSKIA \
+          -DSKIA_LIBRARY_DIR=./libSKIA/out/Release-x64 \
+          -DSKIA_LIBRARY=./libSKIA/out/Release-x64/skia.lib \
+          -DENABLE_CCACHE=$enable_ccache
     - name: Cache objs2
       uses: actions/cache@v3
       with:
