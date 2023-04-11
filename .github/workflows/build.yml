@@ -9,7 +9,7 @@ jobs:
         os: [windows-latest]
         build_type: [RelWithDebInfo]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: 'recursive'
     - uses: seanmiddleditch/gha-setup-ninja@master
@@ -111,11 +111,11 @@ jobs:
     - name: Compiling
       shell: bash
       run: |
-        cd build && ninja -j 4
-    - name: artifacts al build/
+        cd build && ninja -j 5
+    - name: artifacts main exe
       uses: actions/upload-artifact@v3
       with:
-          name: build_outs
+          name: build_outs_exe
           path: build/bin/*asep*exe
     - name: artifact build/data dir
       uses: actions/upload-artifact@v3
