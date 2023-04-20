@@ -196,6 +196,7 @@ if(ENABLE_SCRIPTING)
     script/properties_class.cpp
     script/range_class.cpp
     script/rectangle_class.cpp
+    script/require.cpp
     script/security.cpp
     script/selection_class.cpp
     script/site_class.cpp
@@ -211,6 +212,7 @@ if(ENABLE_SCRIPTING)
     script/tilesets_class.cpp
     script/timer_class.cpp
     script/tool_class.cpp
+    script/uuid_class.cpp
     script/values.cpp
     script/version_class.cpp
     shell.cpp
