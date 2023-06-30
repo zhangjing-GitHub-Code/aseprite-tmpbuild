@@ -143,6 +143,19 @@ void push_value_to_lua(lua_State* L, const doc::Remap& value) {
 }
 
 // ----------------------------------------------------------------------
+// app::Params
+
+template<>
+void push_value_to_lua(lua_State* L, const Params& params) {
+  lua_newtable(L);
+  for (const auto& param : params) {
+    lua_pushstring(L, param.first.c_str());
+    lua_pushstring(L, param.second.c_str());
+    lua_rawset(L, -3);
+  }
+}
+
+// ----------------------------------------------------------------------
 // std::any
 
 template<>
@@ -155,10 +168,15 @@ void push_value_to_lua(lua_State* L, const std::any& value) {
     push_value_to_lua(L, *v);
   else if (auto v = std::any_cast<std::string>(&value))
     push_value_to_lua(L, *v);
+  else if (auto v = std::any_cast<lua_CFunction>(&value))
+    lua_pushcfunction(L, *v);
   else if (auto v = std::any_cast<const doc::Remap*>(&value))
     push_value_to_lua(L, **v);
   else if (auto v = std::any_cast<const doc::Tileset*>(&value))
     push_tileset(L, *v);
+  else if (auto v = std::any_cast<const Params>(&value)) {
+    push_value_to_lua(L, *v);
+  }
   else {
     ASSERT(false);
     throw std::runtime_error("Cannot convert type inside std::any");
@@ -215,6 +233,19 @@ void push_value_to_lua(lua_State* L, const gfx::Rect& value) {
 template<>
 gfx::Rect get_value_from_lua(lua_State* L, int index) {
   return convert_args_into_rect(L, index);
+}
+
+// ----------------------------------------------------------------------
+// Uuid
+
+template<>
+void push_value_to_lua(lua_State* L, const base::Uuid& value) {
+  push_obj(L, value);
+}
+
+template<>
+base::Uuid get_value_from_lua(lua_State* L, int index) {
+  return convert_args_into_uuid(L, index);
 }
 
 // ----------------------------------------------------------------------
@@ -372,6 +403,9 @@ void push_value_to_lua(lua_State* L, const doc::UserData::Variant& value)
     case USER_DATA_PROPERTY_TYPE_PROPERTIES:
       push_value_to_lua(L, *std::get_if<doc::UserData::Properties>(&value));
       break;
+    case USER_DATA_PROPERTY_TYPE_UUID:
+      push_value_to_lua(L, *std::get_if<base::Uuid>(&value));
+      break;
   }
 #else // TODO enable this in the future
   std::visit([L](auto&& v){ push_value_to_lua(L, v); }, value);
@@ -460,6 +494,9 @@ doc::UserData::Variant get_value_from_lua(lua_State* L, int index)
       }
       else if (auto sz = may_get_obj<gfx::Size>(L, index)) {
         v = *sz;
+      }
+      else if (auto uuid = may_get_obj<base::Uuid>(L, index)) {
+        v = *uuid;
       }
       break;
     }

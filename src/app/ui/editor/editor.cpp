@@ -2033,7 +2033,7 @@ bool Editor::onProcessMessage(Message* msg)
     case kKeyDownMessage:
 #if ENABLE_DEVMODE
       // Switch renderer
-      if (!msg->ctrlPressed() &&
+      if (msg->modifiers() == 0 &&
           static_cast<KeyMessage*>(msg)->scancode() == kKeyF1) {
         // TODO replace this experimental flag with a new enum (or
         //      maybe there is no need for user option now that the
@@ -2078,13 +2078,13 @@ bool Editor::onProcessMessage(Message* msg)
       }
 #endif  // ENABLE_DEVMODE
 
-      if (m_sprite) {
+      if (m_sprite && (isActive() || hasMouse())) {
         EditorStatePtr holdState(m_state);
         bool used = m_state->onKeyDown(this, static_cast<KeyMessage*>(msg));
 
-        updateToolLoopModifiersIndicators();
-        updateAutoCelGuides(msg);
         if (hasMouse()) {
+          updateToolLoopModifiersIndicators();
+          updateAutoCelGuides(msg);
           updateQuicktool();
           setCursor(mousePosInDisplay());
         }
@@ -2095,13 +2095,13 @@ bool Editor::onProcessMessage(Message* msg)
       break;
 
     case kKeyUpMessage:
-      if (m_sprite) {
+      if (m_sprite && (isActive() || hasMouse())) {
         EditorStatePtr holdState(m_state);
         bool used = m_state->onKeyUp(this, static_cast<KeyMessage*>(msg));
 
-        updateToolLoopModifiersIndicators();
-        updateAutoCelGuides(msg);
         if (hasMouse()) {
+          updateToolLoopModifiersIndicators();
+          updateAutoCelGuides(msg);
           updateQuicktool();
           setCursor(mousePosInDisplay());
         }
@@ -2418,7 +2418,8 @@ bool Editor::canDraw()
           m_layer->isImage() &&
           m_layer->isVisibleHierarchy() &&
           m_layer->isEditableHierarchy() &&
-          !m_layer->isReference());
+          !m_layer->isReference() &&
+          !m_document->isReadOnly());
 }
 
 bool Editor::isInsideSelection()

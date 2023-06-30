@@ -54,6 +54,10 @@ public:
     m_fop->setError(msg.c_str());
   }
 
+  void incompatibilityError(const std::string& msg) override {
+    m_fop->setIncompatibilityError(msg);
+  }
+
   void progress(double fromZeroToOne) override {
     m_fop->setProgress(fromZeroToOne);
   }
@@ -1607,6 +1611,13 @@ static void ase_file_write_property_value(FILE* f,
         fputw(v.type(), f);
 
         ase_file_write_property_value(f, v);
+      }
+      break;
+    }
+    case USER_DATA_PROPERTY_TYPE_UUID: {
+      auto& uuid = *std::get_if<base::Uuid>(&value);
+      for (int i=0; i<16; ++i) {
+        fputc(uuid[i], f);
       }
       break;
     }

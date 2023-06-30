@@ -1249,7 +1249,10 @@ bool Widget::isTransparent() const
 
 void Widget::setTransparent(bool transparent)
 {
-  enableFlags(TRANSPARENT);
+  if (transparent)
+    enableFlags(TRANSPARENT);
+  else
+    disableFlags(TRANSPARENT);
 }
 
 void Widget::invalidate()
@@ -1693,7 +1696,12 @@ void Widget::onBroadcastMouseMessage(const gfx::Point& screenPos,
 
 void Widget::onInitTheme(InitThemeEvent& ev)
 {
-  for (auto child : children())
+  // Create a copy of the children list and iterate it, just in case a
+  // initTheme() modifies this list (e.g. this can happen in some
+  // strange cases with viewports, where scrollbars are added/removed
+  // while we init the theme if the UI scale changes).
+  auto children = m_children;
+  for (auto child : children)
     child->initTheme();
 
   if (m_theme) {
