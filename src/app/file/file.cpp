@@ -28,6 +28,7 @@
 #include "app/modules/palettes.h"
 #include "app/pref/preferences.h"
 #include "app/tx.h"
+#include "app/ui/incompat_file_window.h"
 #include "app/ui/optional_alert.h"
 #include "app/ui/status_bar.h"
 #include "base/fs.h"
@@ -936,6 +937,10 @@ void FileOp::operate(IFileOpProgress* progress)
     }
 #endif
 
+    // TODO Should we check m_document->isReadOnly() here?  the flag
+    //      is already checked in SaveFileBaseCommand::saveDocumentInBackground
+    //      and only in UI mode (so the CLI still works)
+
     // Save a sequence
     if (isSequence()) {
       ASSERT(m_format->support(FILE_SUPPORT_SEQUENCES));
@@ -1007,18 +1012,7 @@ void FileOp::operate(IFileOpProgress* progress)
           m_filename = m_seq.filename_list[outputFrame];
 
           // Make directories
-          {
-            std::string dir = base::get_file_path(m_filename);
-            try {
-              if (!base::is_directory(dir))
-                base::make_all_directories(dir);
-            }
-            catch (const std::exception& ex) {
-              // Ignore errors and make the delegate fail
-              setError("Error creating directory \"%s\"\n%s",
-                       dir.c_str(), ex.what());
-            }
-          }
+          makeDirectories();
 
           // Call the "save" procedure... did it fail?
           if (!m_format->save(this)) {
@@ -1039,6 +1033,8 @@ void FileOp::operate(IFileOpProgress* progress)
     }
     // Direct save to a file.
     else {
+      makeDirectories();
+
       // Call the "save" procedure.
       if (!m_format->save(this)) {
         setError("Error saving the sprite in the file \"%s\"\n",
@@ -1224,7 +1220,35 @@ void FileOp::postLoad()
     }
   }
 
+  // Mark this document as associated to a file in the disk (so File >
+  // Save doesn't ask for a new name)
   m_document->markAsSaved();
+
+  // In case that the document was loaded without all the information
+  // from the file, i.e. we loaded an .aseprite file created with a
+  // newer Aseprite version and cannot interpret all its information,
+  // saving this file should show a warning that some original data
+  // will be lost if we save/overwrite it.
+  if (hasIncompatibilityError()) {
+    // Mark the active undo state as impossible to reach the original
+    // disk state.
+    m_document->impossibleToBackToSavedState();
+
+#ifdef ENABLE_UI
+    if (m_context && m_context->isUIAvailable()) {
+      IncompatFileWindow window;
+      window.show(m_incompatibilityError);
+    }
+    else
+#endif // ENABLE_UI
+    {
+      setError(m_incompatibilityError.c_str());
+    }
+
+    // Mark as read-only so we cannot save the file directly (without
+    // an incompatibility warning/error).
+    m_document->markAsReadOnly();
+  }
 }
 
 void FileOp::setLoadedFormatOptions(const FormatOptionsPtr& opts)
@@ -1371,6 +1395,18 @@ void FileOp::setError(const char *format, ...)
   }
 }
 
+void FileOp::setIncompatibilityError(const std::string& msg)
+{
+  // Concatenate the new error
+  {
+    std::lock_guard lock(m_mutex);
+    // Add a newline char automatically if it's needed
+    if (!m_incompatibilityError.empty() && m_incompatibilityError.back() != '\n')
+      m_incompatibilityError.push_back('\n');
+    m_incompatibilityError += msg;
+  }
+}
+
 void FileOp::setProgress(double progress)
 {
   std::lock_guard lock(m_mutex);
@@ -1470,6 +1506,20 @@ void FileOp::prepareForSequence()
 {
   m_seq.palette = new Palette(frame_t(0), 256);
   m_formatOptions.reset();
+}
+
+void FileOp::makeDirectories()
+{
+  std::string dir = base::get_file_path(m_filename);
+  try {
+    if (!base::is_directory(dir))
+      base::make_all_directories(dir);
+  }
+  catch (const std::exception& ex) {
+    // Ignore errors and make the delegate fail
+    setError("Error creating directory \"%s\"\n%s",
+             dir.c_str(), ex.what());
+  }
 }
 
 } // namespace app

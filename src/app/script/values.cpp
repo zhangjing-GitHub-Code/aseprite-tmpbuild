@@ -11,9 +11,13 @@
 #include "app/script/values.h"
 
 #include "app/pref/preferences.h"
+#include "app/script/docobj.h"
 #include "app/script/engine.h"
 #include "app/script/luacpp.h"
+#include "doc/frame.h"
+#include "doc/layer.h"
 #include "doc/remap.h"
+#include "doc/sprite.h"
 
 #include <any>
 #include <cstddef>
@@ -143,6 +147,19 @@ void push_value_to_lua(lua_State* L, const doc::Remap& value) {
 }
 
 // ----------------------------------------------------------------------
+// app::Params
+
+template<>
+void push_value_to_lua(lua_State* L, const Params& params) {
+  lua_newtable(L);
+  for (const auto& param : params) {
+    lua_pushstring(L, param.first.c_str());
+    lua_pushstring(L, param.second.c_str());
+    lua_rawset(L, -3);
+  }
+}
+
+// ----------------------------------------------------------------------
 // std::any
 
 template<>
@@ -153,12 +170,27 @@ void push_value_to_lua(lua_State* L, const std::any& value) {
     push_value_to_lua(L, *v);
   else if (auto v = std::any_cast<int>(&value))
     push_value_to_lua(L, *v);
+  // TODO "doc::frame_t" type matches "int", we could add a doc::Frame()
+  //      kind of object in the future
+  //else if (auto v = std::any_cast<doc::frame_t>(&value))
+  //  push_sprite_frame(L, nullptr, *v);
+  else if (auto v = std::any_cast<doc::tile_index>(&value))
+    push_value_to_lua(L, *v);
   else if (auto v = std::any_cast<std::string>(&value))
     push_value_to_lua(L, *v);
+  else if (auto v = std::any_cast<lua_CFunction>(&value))
+    lua_pushcfunction(L, *v);
   else if (auto v = std::any_cast<const doc::Remap*>(&value))
     push_value_to_lua(L, **v);
-  else if (auto v = std::any_cast<const doc::Tileset*>(&value))
+  else if (auto v = std::any_cast<doc::Tileset*>(&value))
     push_tileset(L, *v);
+  else if (auto v = std::any_cast<doc::Sprite*>(&value))
+    push_docobj(L, *v);
+  else if (auto v = std::any_cast<doc::Layer*>(&value))
+    push_docobj(L, *v);
+  else if (auto v = std::any_cast<const Params>(&value)) {
+    push_value_to_lua(L, *v);
+  }
   else {
     ASSERT(false);
     throw std::runtime_error("Cannot convert type inside std::any");
@@ -215,6 +247,19 @@ void push_value_to_lua(lua_State* L, const gfx::Rect& value) {
 template<>
 gfx::Rect get_value_from_lua(lua_State* L, int index) {
   return convert_args_into_rect(L, index);
+}
+
+// ----------------------------------------------------------------------
+// Uuid
+
+template<>
+void push_value_to_lua(lua_State* L, const base::Uuid& value) {
+  push_obj(L, value);
+}
+
+template<>
+base::Uuid get_value_from_lua(lua_State* L, int index) {
+  return convert_args_into_uuid(L, index);
 }
 
 // ----------------------------------------------------------------------
@@ -372,6 +417,9 @@ void push_value_to_lua(lua_State* L, const doc::UserData::Variant& value)
     case USER_DATA_PROPERTY_TYPE_PROPERTIES:
       push_value_to_lua(L, *std::get_if<doc::UserData::Properties>(&value));
       break;
+    case USER_DATA_PROPERTY_TYPE_UUID:
+      push_value_to_lua(L, *std::get_if<base::Uuid>(&value));
+      break;
   }
 #else // TODO enable this in the future
   std::visit([L](auto&& v){ push_value_to_lua(L, v); }, value);
@@ -460,6 +508,9 @@ doc::UserData::Variant get_value_from_lua(lua_State* L, int index)
       }
       else if (auto sz = may_get_obj<gfx::Size>(L, index)) {
         v = *sz;
+      }
+      else if (auto uuid = may_get_obj<base::Uuid>(L, index)) {
+        v = *uuid;
       }
       break;
     }

@@ -1,5 +1,5 @@
 // Aseprite
-// Copyright (C) 2019-2022  Igara Studio S.A.
+// Copyright (C) 2019-2023  Igara Studio S.A.
 // Copyright (C) 2001-2018  David Capello
 //
 // This program is distributed under the terms of
@@ -782,6 +782,13 @@ tools::ToolLoop* create_tool_loop(
 {
   Site site = editor->getSite();
   doc::Grid grid = site.grid();
+
+  // If the document is read-only.
+  if (site.document()->isReadOnly()) {
+    StatusBar::instance()->showTip(
+      3000, Strings::statusbar_tips_cannot_modify_readonly_sprite());
+    return nullptr;
+  }
 
   ToolLoopParams params;
   params.tool = editor->getCurrentEditorTool();

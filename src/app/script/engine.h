@@ -16,6 +16,7 @@
 #include "app/color.h"
 #include "app/commands/params.h"
 #include "app/extensions.h"
+#include "base/uuid.h"
 #include "doc/brush.h"
 #include "doc/frame.h"
 #include "doc/object_ids.h"
@@ -139,7 +140,7 @@ namespace app {
   };
 
   void push_app_events(lua_State* L);
-  void push_app_theme(lua_State* L);
+  void push_app_theme(lua_State* L, int uiscale = 1);
   int push_image_iterator_function(lua_State* L, const doc::Image* image, int extraArgIndex);
   void push_brush(lua_State* L, const doc::BrushRef& brush);
   void push_cel_image(lua_State* L, doc::Cel* cel);
@@ -182,6 +183,7 @@ namespace app {
   app::Color convert_args_into_color(lua_State* L, int index);
   doc::color_t convert_args_into_pixel_color(lua_State* L, int index,
                                              const doc::PixelFormat pixelFormat);
+  base::Uuid convert_args_into_uuid(lua_State* L, int index);
   doc::Palette* get_palette_from_arg(lua_State* L, int index);
   doc::Image* may_get_image_from_arg(lua_State* L, int index);
   doc::Image* get_image_from_arg(lua_State* L, int index);

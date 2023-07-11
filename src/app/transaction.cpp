@@ -15,6 +15,7 @@
 #include "app/context_access.h"
 #include "app/doc.h"
 #include "app/doc_undo.h"
+#include "app/i18n/strings.h"
 #include "app/modules/palettes.h"
 #include "doc/sprite.h"
 #include "ui/manager.h"
@@ -25,6 +26,11 @@
 namespace app {
 
 using namespace doc;
+
+CannotModifyWhenReadOnlyException::CannotModifyWhenReadOnlyException() throw()
+  : base::Exception(Strings::statusbar_tips_cannot_modify_readonly_sprite())
+{
+}
 
 Transaction::Transaction(
   Context* ctx,
@@ -140,6 +146,12 @@ void Transaction::rollback(CmdTransaction* newCmds)
 
 void Transaction::execute(Cmd* cmd)
 {
+  // Read-only sprites cannot be modified.
+  if (m_doc->isReadOnly()) {
+    delete cmd;
+    throw CannotModifyWhenReadOnlyException();
+  }
+
   // If we are undoing/redoing, just throw an exception, we cannot
   // modify the sprite while we are moving throw the undo history.
   // To undo/redo we have just to call the onUndo/onRedo of each

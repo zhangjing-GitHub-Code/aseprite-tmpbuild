@@ -9,6 +9,7 @@
 #endif
 
 #include "app/app.h"
+#include "app/commands/command.h"
 #include "app/context.h"
 #include "app/context_observer.h"
 #include "app/doc.h"
@@ -144,10 +145,20 @@ private:
   std::vector<EventListeners> m_listeners;
 };
 
+// Used in BeforeCommand
+static bool s_stopPropagationFlag = false;
+
 class AppEvents : public Events
                 , private ContextObserver {
 public:
-  enum : EventType { Unknown = -1, SiteChange, FgColorChange, BgColorChange };
+  enum : EventType {
+    Unknown = -1,
+    SiteChange,
+    FgColorChange,
+    BgColorChange,
+    BeforeCommand,
+    AfterCommand,
+  };
 
   AppEvents() {
   }
@@ -159,6 +170,10 @@ public:
       return FgColorChange;
     else if (std::strcmp(eventName, "bgcolorchange") == 0)
       return BgColorChange;
+    else if (std::strcmp(eventName, "beforecommand") == 0)
+      return BeforeCommand;
+    else if (std::strcmp(eventName, "aftercommand") == 0)
+      return AfterCommand;
     else
       return Unknown;
   }
@@ -166,17 +181,28 @@ public:
 private:
 
   void onAddFirstListener(EventType eventType) override {
+    auto app = App::instance();
+    auto ctx = app->context();
+    auto& pref = Preferences::instance();
     switch (eventType) {
       case SiteChange:
-        App::instance()->context()->add_observer(this);
+        ctx->add_observer(this);
         break;
       case FgColorChange:
-        m_fgConn = Preferences::instance().colorBar.fgColor
-          .AfterChange.connect([this]{ onFgColorChange(); });
+        m_fgConn = pref.colorBar.fgColor.AfterChange
+          .connect([this]{ onFgColorChange(); });
         break;
       case BgColorChange:
-        m_bgConn = Preferences::instance().colorBar.bgColor
-          .AfterChange.connect([this]{ onBgColorChange(); });
+        m_bgConn = pref.colorBar.bgColor.AfterChange
+          .connect([this]{ onBgColorChange(); });
+        break;
+      case BeforeCommand:
+        m_beforeCmdConn = ctx->BeforeCommandExecution
+          .connect(&AppEvents::onBeforeCommand, this);
+        break;
+      case AfterCommand:
+        m_afterCmdConn = ctx->AfterCommandExecution
+          .connect(&AppEvents::onAfterCommand, this);
         break;
     }
   }
@@ -192,6 +218,12 @@ private:
       case BgColorChange:
         m_bgConn.disconnect();
         break;
+      case BeforeCommand:
+        m_beforeCmdConn.disconnect();
+        break;
+      case AfterCommand:
+        m_afterCmdConn.disconnect();
+        break;
     }
   }
 
@@ -203,6 +235,25 @@ private:
     call(BgColorChange);
   }
 
+  void onBeforeCommand(CommandExecutionEvent& ev) {
+    s_stopPropagationFlag = false;
+    call(BeforeCommand, { { "name", ev.command()->id() },
+                          { "params", ev.params() },
+                          { "stopPropagation",
+                            (lua_CFunction)
+                            [](lua_State*) -> int {
+                              s_stopPropagationFlag = true;
+                              return 0;
+                            } } });
+    if (s_stopPropagationFlag)
+      ev.cancel();
+  }
+
+  void onAfterCommand(CommandExecutionEvent& ev) {
+    call(AfterCommand, { { "name", ev.command()->id() },
+                         { "params", ev.params() } });
+  }
+
   // ContextObserver impl
   void onActiveSiteChange(const Site& site) override {
     const bool fromUndo = (site.document() &&
@@ -212,6 +263,9 @@ private:
 
   obs::scoped_connection m_fgConn;
   obs::scoped_connection m_bgConn;
+  obs::scoped_connection m_beforeCmdConn;
+  obs::scoped_connection m_afterCmdConn;
+  obs::scoped_connection m_beforePaintConn;
 };
 
 class SpriteEvents : public Events
@@ -222,6 +276,7 @@ public:
     Unknown = -1,
     Change,
     FilenameChange,
+    AfterAddTile,
 #if ENABLE_REMAP_TILESET_EVENT
     RemapTileset,
 #endif
@@ -251,6 +306,8 @@ public:
       return Change;
     else if (std::strcmp(eventName, "filenamechange") == 0)
       return FilenameChange;
+    else if (std::strcmp(eventName, "afteraddtile") == 0)
+      return AfterAddTile;
 #if ENABLE_REMAP_TILESET_EVENT
     else if (std::strcmp(eventName, "remaptileset") == 0)
       return RemapTileset;
@@ -273,11 +330,20 @@ public:
     call(FilenameChange);
   }
 
+  void onAfterAddTile(DocEvent& ev) override {
+    call(AfterAddTile, { { "sprite", ev.sprite() },
+                         { "layer", ev.layer() },
+                         // This is detected as a "int" type
+                         { "frameNumber", ev.frame()+1 },
+                         { "tileset", ev.tileset() },
+                         { "tileIndex", ev.tileIndex() } });
+  }
+
 #if ENABLE_REMAP_TILESET_EVENT
   void onRemapTileset(DocEvent& ev, const doc::Remap& remap) override {
     const bool fromUndo = (ev.document()->transaction() == nullptr);
     call(RemapTileset, { { "remap", std::any(&remap) },
-                         { "tileset", std::any((const doc::Tileset*)ev.tileset()) },
+                         { "tileset", ev.tileset() },
                          { "fromUndo", fromUndo } });
   }
 #endif

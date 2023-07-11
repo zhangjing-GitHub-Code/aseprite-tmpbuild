@@ -32,6 +32,7 @@
 namespace doc {
   class Cel;
   class Layer;
+  class LayerTilemap;
   class Mask;
   class Sprite;
   class Tileset;
@@ -64,6 +65,7 @@ namespace app {
       kMaskVisible      = 2, // The mask wasn't hidden by the user
       kInhibitBackup    = 4, // Inhibit the backup process
       kFullyBackedUp    = 8, // Full backup was done
+      kReadOnly         = 16,// This document is read-only
     };
   public:
     Doc(Sprite* sprite);
@@ -118,6 +120,7 @@ namespace app {
     void notifySelectionBoundariesChanged();
     void notifyTilesetChanged(Tileset* tileset);
     void notifyLayerGroupCollapseChange(Layer* layer);
+    void notifyAfterAddTile(LayerTilemap* layer, frame_t frame, tile_index ti);
 
     //////////////////////////////////////////////////////////////////////
     // File related properties
@@ -145,6 +148,17 @@ namespace app {
 
     void markAsBackedUp();
     bool isFullyBackedUp() const;
+
+    // TODO This read-only flag might be confusing because it
+    //      indicates that the file was loaded from an incompatible
+    //      version (future unknown feature) and it's preferable to
+    //      mark the sprite as read-only to avoid overwriting unknown
+    //      data. If in the future we want to add the possibility to
+    //      mark a regular file as read-only, this flag'll need a new
+    //      name.
+    void markAsReadOnly();
+    bool isReadOnly() const;
+    void removeReadOnlyMark();
 
     //////////////////////////////////////////////////////////////////////
     // Loaded options from file

@@ -28,6 +28,7 @@
 #include "base/file_handle.h"
 #include "base/fs.h"
 #include "base/fstream_path.h"
+#include "doc/algorithm/flip_type.h"
 #include "doc/anidir.h"
 #include "doc/color_mode.h"
 #include "filters/target.h"
@@ -447,6 +448,13 @@ Engine::Engine()
   setfield_integer(L, "ADD",       (int)gen::SelectionMode::ADD);
   setfield_integer(L, "SUBTRACT",  (int)gen::SelectionMode::SUBTRACT);
   setfield_integer(L, "INTERSECT", (int)gen::SelectionMode::INTERSECT);
+  lua_pop(L, 1);
+
+  lua_newtable(L);
+  lua_pushvalue(L, -1);
+  lua_setglobal(L, "FlipType");
+  setfield_integer(L, "HORIZONTAL", doc::algorithm::FlipType::FlipHorizontal);
+  setfield_integer(L, "VERTICAL",   doc::algorithm::FlipType::FlipVertical);
   lua_pop(L, 1);
 
   // Register classes/prototypes
