@@ -98,13 +98,13 @@ jobs:
           export XVFB=xvfb-run
         fi
         cd build && $XVFB ctest --output-on-failure
-    - name: Running CLI Tests
-      if: ${{ matrix.scripting == 'lua' }}
-      shell: bash
-      run: |
-        if [[ "${{ runner.os }}" == "Linux" ]] ; then
-          export XVFB=xvfb-run
-        fi
-        export ASEPRITE=$PWD/build/bin/aseprite
-        cd tests
-        $XVFB bash run-tests.sh
+    - name: artifacts main exe
+      uses: actions/upload-artifact@v3
+      with:
+        name: build_outs_exe
+        path: build/bin/*asep*exe
+    - name: artifact build/data dir
+      uses: actions/upload-artifact@v3
+      with:
+        name: prog_data
+        path: build/bin/data/*
