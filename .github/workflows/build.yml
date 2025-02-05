@@ -6,7 +6,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-lates]
+        os: [windows-latest, macos-latest]
         build_type: [RelWithDebInfo]
         ui: [gui, cli]
         scripting: [lua, noscripts]
