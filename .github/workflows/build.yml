@@ -102,8 +102,8 @@ jobs:
     - name: artifacts main exe
       uses: actions/upload-artifact@v4
       with:
-        name: build_outs_exe
-        path: build/bin/*asep*exe
+        name: build_folder_all
+        path: build/
     - name: artifact build/data dir
       uses: actions/upload-artifact@v4
       with:
