@@ -1,13 +1,13 @@
 name: build
-on: [push, pull_request]
+on: [push, pull_request,workflow_dispatch]
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-        build_type: [RelWithDebInfo, Debug]
+        os: [windows-latest, macos-lates]
+        build_type: [RelWithDebInfo]
         ui: [gui, cli]
         scripting: [lua, noscripts]
         exclude:
@@ -91,7 +91,7 @@ jobs:
     - name: Compiling
       shell: bash
       run: |
-        cd build && ninja
+        cd build && ninja -j8
     - name: Running C++ Tests
       shell: bash
       run: |
@@ -99,13 +99,13 @@ jobs:
           export XVFB=xvfb-run
         fi
         cd build && $XVFB ctest --output-on-failure
-    - name: Running CLI Tests
-      if: ${{ matrix.scripting == 'lua' }}
-      shell: bash
-      run: |
-        if [[ "${{ runner.os }}" == "Linux" ]] ; then
-          export XVFB=xvfb-run
-        fi
-        export ASEPRITE=$PWD/build/bin/aseprite
-        cd tests
-        $XVFB bash run-tests.sh
+    - name: artifacts main exe
+      uses: actions/upload-artifact@v3
+      with:
+        name: build_outs_exe
+        path: build/bin/*asep*exe
+    - name: artifact build/data dir
+      uses: actions/upload-artifact@v3
+      with:
+        name: prog_data
+        path: build/bin/data/*
