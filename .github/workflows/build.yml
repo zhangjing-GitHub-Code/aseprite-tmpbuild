@@ -109,10 +109,10 @@ jobs:
     - name: artifacts main exe
       uses: actions/upload-artifact@v4
       with:
-        name: build_folder_all
+        name: build_all-${{matrix.os}}-${{matrix.ui}}-${{matrix.scripting}}-${{matrix.build_type}}
         path: build/
     - name: artifact build/data dir
       uses: actions/upload-artifact@v4
       with:
-        name: prog_data
+        name: prog_data-${{ matrix.os }}-${{ matrix.ui }}-${{ matrix.scripting }}-${{ matrix.build_type }}
         path: build/bin/data/*
