@@ -49,15 +49,11 @@ jobs:
       if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
       with:
         key: ${{ matrix.os }}-${{ matrix.ui }}-${{ matrix.scripting }}-${{ matrix.build_type }}
-    - name: Run sccache-cache
-      if: runner.os == 'Windows'
-      uses: mozilla-actions/sccache-action@v0.0.7
+    # - name: Run sccache-cache
+      # if: runner.os == 'Windows'
+      # uses: mozilla-actions/sccache-action@v0.0.7
       # with:
         # key: ${{ matrix.os }}-${{ matrix.ui }}-${{ matrix.scripting }}-${{ matrix.build_type }}
-    - name: sccache C++
-      if: runner.os == 'Windows'
-      run: |
-        echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
     - uses: aseprite/get-ninja@main
     - uses: ilammy/msvc-dev-cmd@v1
       if: runner.os == 'Windows'
@@ -66,8 +62,8 @@ jobs:
       run: |
         win_args=""
         if [[ "${{ runner.os }}" == "Windows" ]] ; then
-          export enable_ccache=on
-          win_args="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+          export enable_ccache=off
+          # win_args="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
         else
           export enable_ccache=on
         fi
@@ -98,8 +94,7 @@ jobs:
           -DENABLE_CCACHE=$enable_ccache \
           -DLAF_BACKEND=$laf_backend \
           -DSKIA_DIR=$(realpath skia) \
-          -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-$skia_arch) \
-          $win_args
+          -DSKIA_LIBRARY_DIR=$(realpath skia/out/Release-$skia_arch)
     - name: Compiling
       shell: bash
       run: |
