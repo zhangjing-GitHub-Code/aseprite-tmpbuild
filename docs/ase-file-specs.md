@@ -126,9 +126,12 @@ at least.
 
 ### Old palette chunk (0x0004)
 
-Ignore this chunk if you find the new palette chunk (0x2019) Aseprite
-v1.1 saves both chunks 0x0004 and 0x2019 just for backward
-compatibility.
+Ignore this chunk if you find the new palette chunk (0x2019). Aseprite
+v1.1 saves both chunks (0x0004 and 0x2019) just for backward
+compatibility. Aseprite v1.3.5 writes this chunk if the palette
+doesn't have alpha channel and contains 256 colors or less (because
+this chunk is smaller), in other case the new palette chunk (0x2019)
+will be used (and the old one is not saved anymore).
 
     WORD        Number of packets
     + For each packet
@@ -235,7 +238,7 @@ This chunk determine where to put a cel in the specified layer/frame.
       DWORD     Bitmask for tile ID (e.g. 0x1fffffff for 32-bit tiles)
       DWORD     Bitmask for X flip
       DWORD     Bitmask for Y flip
-      DWORD     Bitmask for 90CW rotation
+      DWORD     Bitmask for diagonal flip (swap X/Y axis)
       BYTE[10]  Reserved
       TILE[]    Row by row, from top to bottom tile by tile
                 compressed with ZLIB method (see NOTE.3)
@@ -485,6 +488,11 @@ The data of this chunk is as follows:
                       (this is the new format). In rare cases this bit is off,
                       and the empty tile will be equal to 0xffffffff (used in
                       internal versions of Aseprite)
+                  8 - Aseprite will try to match modified tiles with their X
+                      flipped version automatically in Auto mode when using
+                      this tileset.
+                  16 - Same for Y flips
+                  32 - Same for D(iagonal) flips
     DWORD       Number of tiles
     WORD        Tile Width
     WORD        Tile Height
@@ -501,7 +509,7 @@ The data of this chunk is as follows:
                 of the the External Files Chunk.
       DWORD     Tileset ID in the external file
     + If flag 2 is set
-      DWORD     Compressed data length
+      DWORD     Data length of the compressed Tileset image
       PIXEL[]   Compressed Tileset image (see NOTE.3):
                   (Tile Width) x (Tile Height x Number of Tiles)
 

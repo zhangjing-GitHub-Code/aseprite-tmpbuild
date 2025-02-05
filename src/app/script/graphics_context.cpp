@@ -5,7 +5,7 @@
 // the End-User License Agreement for Aseprite.
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+  #include "config.h"
 #endif
 
 #include "app/script/graphics_context.h"
@@ -18,38 +18,42 @@
 #include "app/script/luacpp.h"
 #include "app/ui/skin/skin_theme.h"
 #include "app/util/conversion_to_surface.h"
+#include "doc/cel.h"
+#include "doc/tileset.h"
 #include "os/draw_text.h"
 #include "os/surface.h"
 #include "os/system.h"
 
 #include <algorithm>
 
-#ifdef ENABLE_UI
-
-namespace app {
-namespace script {
+namespace app { namespace script {
 
 void GraphicsContext::fillText(const std::string& text, int x, int y)
 {
-  os::draw_text(m_surface.get(), m_font.get(),
-                text, m_paint.color(), 0, x, y, nullptr);
+  os::draw_text(m_surface.get(), m_font.get(), text, m_paint.color(), 0, x, y, nullptr);
 }
 
 gfx::Size GraphicsContext::measureText(const std::string& text) const
 {
-  return os::draw_text(nullptr, m_font.get(), text,
-                       0, 0, 0, 0, nullptr).size();
+  return os::draw_text(nullptr, m_font.get(), text, 0, 0, 0, 0, nullptr).size();
 }
 
 void GraphicsContext::drawImage(const doc::Image* img, int x, int y)
 {
-  convert_image_to_surface(
-    img,
-    get_current_palette(),
-    m_surface.get(),
-    0, 0,
-    x, y,
-    img->width(), img->height());
+  if (m_paint.blendMode() == os::BlendMode::Src) {
+    convert_image_to_surface(img,
+                             m_palette ? m_palette : get_current_palette(),
+                             m_surface.get(),
+                             0,
+                             0,
+                             x,
+                             y,
+                             img->width(),
+                             img->height());
+    return;
+  }
+
+  drawImage(img, img->bounds(), gfx::Rect(x, y, img->size().w, img->size().h));
 }
 
 void GraphicsContext::drawImage(const doc::Image* img,
@@ -57,34 +61,37 @@ void GraphicsContext::drawImage(const doc::Image* img,
                                 const gfx::Rect& dstRc)
 {
   if (srcRc.isEmpty() || dstRc.isEmpty())
-    return;                     // Do nothing for empty rectangles
+    return; // Do nothing for empty rectangles
 
   static os::SurfaceRef tmpSurface = nullptr;
-  if (!tmpSurface ||
-      tmpSurface->width() < srcRc.w ||
-      tmpSurface->height() < srcRc.h) {
+  if (!tmpSurface || tmpSurface->width() < srcRc.w || tmpSurface->height() < srcRc.h) {
     tmpSurface = os::instance()->makeRgbaSurface(
-      std::max(srcRc.w, (tmpSurface ? tmpSurface->width(): 0)),
-      std::max(srcRc.h, (tmpSurface ? tmpSurface->height(): 0)));
+      std::max(srcRc.w, (tmpSurface ? tmpSurface->width() : 0)),
+      std::max(srcRc.h, (tmpSurface ? tmpSurface->height() : 0)));
   }
   if (tmpSurface) {
-    convert_image_to_surface(
-      img,
-      get_current_palette(),
-      tmpSurface.get(),
-      srcRc.x, srcRc.y,
-      0, 0,
-      srcRc.w, srcRc.h);
+    convert_image_to_surface(img,
+                             m_palette ? m_palette : get_current_palette(),
+                             tmpSurface.get(),
+                             srcRc.x,
+                             srcRc.y,
+                             0,
+                             0,
+                             srcRc.w,
+                             srcRc.h);
 
-    m_surface->drawSurface(tmpSurface.get(), gfx::Rect(0, 0, srcRc.w, srcRc.h),
-                           dstRc, os::Sampling(), &m_paint);
+    m_surface->drawSurface(tmpSurface.get(),
+                           gfx::Rect(0, 0, srcRc.w, srcRc.h),
+                           dstRc,
+                           os::Sampling(),
+                           &m_paint);
   }
 }
 
 void GraphicsContext::drawThemeImage(const std::string& partId, const gfx::Point& pt)
 {
   if (auto theme = skin::SkinTheme::instance()) {
-    skin::SkinPartPtr part = (m_uiscale > 1 ? theme->getUnscaledPartById(partId):
+    skin::SkinPartPtr part = (m_uiscale > 1 ? theme->getUnscaledPartById(partId) :
                                               theme->getPartById(partId));
     if (part && part->bitmap(0)) {
       auto bmp = part->bitmap(0);
@@ -96,7 +103,7 @@ void GraphicsContext::drawThemeImage(const std::string& partId, const gfx::Point
 void GraphicsContext::drawThemeRect(const std::string& partId, const gfx::Rect& rc)
 {
   if (auto theme = skin::SkinTheme::instance()) {
-    skin::SkinPartPtr part = (m_uiscale > 1 ? theme->getUnscaledPartById(partId):
+    skin::SkinPartPtr part = (m_uiscale > 1 ? theme->getUnscaledPartById(partId) :
                                               theme->getPartById(partId));
     if (part && part->bitmap(0)) {
       ui::Graphics g(nullptr, m_surface, 0, 0);
@@ -116,18 +123,14 @@ void GraphicsContext::drawThemeRect(const std::string& partId, const gfx::Rect& 
           auto bmp = part->bitmap(0);
           // Horizontal line
           if (rc.w > part->spriteBounds().w) {
-            for (int x=rc.x; x<rc.x2(); x+=part->spriteBounds().w) {
-              g.drawRgbaSurface(
-                bmp,
-                x, rc.y+rc.h/2-part->spriteBounds().h/2);
+            for (int x = rc.x; x < rc.x2(); x += part->spriteBounds().w) {
+              g.drawRgbaSurface(bmp, x, rc.y + rc.h / 2 - part->spriteBounds().h / 2);
             }
           }
           // Vertical line
           else {
-            for (int y=rc.y; y<rc.y2(); y+=part->spriteBounds().h) {
-              g.drawRgbaSurface(
-                bmp,
-                rc.x+rc.w/2-part->spriteBounds().w/2, y);
+            for (int y = rc.y; y < rc.y2(); y += part->spriteBounds().h) {
+              g.drawRgbaSurface(bmp, rc.x + rc.w / 2 - part->spriteBounds().w / 2, y);
             }
           }
         }
@@ -215,10 +218,32 @@ int GraphicsContext_measureText(lua_State* L)
   return 0;
 }
 
+doc::Palette* get_image_palette(const doc::Image* img,
+                                const doc::Palette* currentPal,
+                                lua_State* L,
+                                int index)
+{
+  if (img->spec().colorMode() != ColorMode::INDEXED || currentPal)
+    return nullptr;
+
+  if (const doc::Cel* cel = get_image_cel_from_arg(L, index)) {
+    return cel->sprite()->palette(cel->frame());
+  }
+  else if (const doc::Tileset* tileset = get_image_tileset_from_arg(L, index)) {
+    return tileset->sprite()->palette(0);
+  }
+  return nullptr;
+}
+
 int GraphicsContext_drawImage(lua_State* L)
 {
   auto gc = get_obj<GraphicsContext>(L, 1);
   if (const doc::Image* img = may_get_image_from_arg(L, 2)) {
+    doc::Palette* pal = get_image_palette(img, gc->palette(), L, 2);
+    if (pal) {
+      gc->save();
+      gc->palette(pal);
+    }
     int x = lua_tointeger(L, 3);
     int y = lua_tointeger(L, 4);
 
@@ -240,6 +265,8 @@ int GraphicsContext_drawImage(lua_State* L)
         gc->drawImage(img, x, y);
       }
     }
+    if (pal)
+      gc->restore();
   }
   return 0;
 }
@@ -342,7 +369,7 @@ int GraphicsContext_roundedRect(lua_State* L)
   auto gc = get_obj<GraphicsContext>(L, 1);
   const gfx::Rect rc = convert_args_into_rect(L, 2);
   const float rx = lua_tonumber(L, 3);
-  const float ry = (lua_gettop(L) >= 4 ? lua_tonumber(L, 4): rx);
+  const float ry = (lua_gettop(L) >= 4 ? lua_tonumber(L, 4) : rx);
   gc->roundedRect(rc, rx, ry);
   return 0;
 }
@@ -425,16 +452,14 @@ int GraphicsContext_set_strokeWidth(lua_State* L)
 int GraphicsContext_get_blendMode(lua_State* L)
 {
   auto gc = get_obj<GraphicsContext>(L, 1);
-  lua_pushinteger(
-    L, int(base::convert_to<app::script::BlendMode>(gc->blendMode())));
+  lua_pushinteger(L, int(base::convert_to<app::script::BlendMode>(gc->blendMode())));
   return 0;
 }
 
 int GraphicsContext_set_blendMode(lua_State* L)
 {
   auto gc = get_obj<GraphicsContext>(L, 1);
-  gc->blendMode(base::convert_to<os::BlendMode>(
-                  app::script::BlendMode(lua_tointeger(L, 2))));
+  gc->blendMode(base::convert_to<os::BlendMode>(app::script::BlendMode(lua_tointeger(L, 2))));
   return 0;
 }
 
@@ -453,41 +478,57 @@ int GraphicsContext_set_opacity(lua_State* L)
   return 0;
 }
 
+int GraphicsContext_get_palette(lua_State* L)
+{
+  auto gc = get_obj<GraphicsContext>(L, 1);
+  push_palette(L, gc->palette());
+  return 1;
+}
+
+int GraphicsContext_set_palette(lua_State* L)
+{
+  auto gc = get_obj<GraphicsContext>(L, 1);
+  doc::Palette* palette = get_palette_from_arg(L, 2);
+  gc->palette(palette);
+  return 1;
+}
+
 const luaL_Reg GraphicsContext_methods[] = {
-  { "__gc", GraphicsContext_gc },
-  { "save", GraphicsContext_save },
-  { "restore", GraphicsContext_restore },
-  { "clip", GraphicsContext_clip },
-  { "strokeRect", GraphicsContext_strokeRect },
-  { "fillRect", GraphicsContext_fillRect },
-  { "fillText", GraphicsContext_fillText },
-  { "measureText", GraphicsContext_measureText },
-  { "drawImage", GraphicsContext_drawImage },
+  { "__gc",           GraphicsContext_gc             },
+  { "save",           GraphicsContext_save           },
+  { "restore",        GraphicsContext_restore        },
+  { "clip",           GraphicsContext_clip           },
+  { "strokeRect",     GraphicsContext_strokeRect     },
+  { "fillRect",       GraphicsContext_fillRect       },
+  { "fillText",       GraphicsContext_fillText       },
+  { "measureText",    GraphicsContext_measureText    },
+  { "drawImage",      GraphicsContext_drawImage      },
   { "drawThemeImage", GraphicsContext_drawThemeImage },
-  { "drawThemeRect", GraphicsContext_drawThemeRect },
-  { "beginPath", GraphicsContext_beginPath },
-  { "closePath", GraphicsContext_closePath },
-  { "moveTo", GraphicsContext_moveTo },
-  { "lineTo", GraphicsContext_lineTo },
-  { "cubicTo", GraphicsContext_cubicTo },
-  { "oval", GraphicsContext_oval },
-  { "rect", GraphicsContext_rect },
-  { "roundedRect", GraphicsContext_roundedRect },
-  { "stroke", GraphicsContext_stroke },
-  { "fill", GraphicsContext_fill },
-  { nullptr, nullptr }
+  { "drawThemeRect",  GraphicsContext_drawThemeRect  },
+  { "beginPath",      GraphicsContext_beginPath      },
+  { "closePath",      GraphicsContext_closePath      },
+  { "moveTo",         GraphicsContext_moveTo         },
+  { "lineTo",         GraphicsContext_lineTo         },
+  { "cubicTo",        GraphicsContext_cubicTo        },
+  { "oval",           GraphicsContext_oval           },
+  { "rect",           GraphicsContext_rect           },
+  { "roundedRect",    GraphicsContext_roundedRect    },
+  { "stroke",         GraphicsContext_stroke         },
+  { "fill",           GraphicsContext_fill           },
+  { nullptr,          nullptr                        }
 };
 
 const Property GraphicsContext_properties[] = {
-  { "width", GraphicsContext_get_width, nullptr },
-  { "height", GraphicsContext_get_height, nullptr },
-  { "theme", GraphicsContext_theme, nullptr },
-  { "antialias", GraphicsContext_get_antialias, GraphicsContext_set_antialias },
-  { "color", GraphicsContext_get_color, GraphicsContext_set_color },
+  { "width",       GraphicsContext_get_width,       nullptr                         },
+  { "height",      GraphicsContext_get_height,      nullptr                         },
+  { "theme",       GraphicsContext_theme,           nullptr                         },
+  { "antialias",   GraphicsContext_get_antialias,   GraphicsContext_set_antialias   },
+  { "color",       GraphicsContext_get_color,       GraphicsContext_set_color       },
   { "strokeWidth", GraphicsContext_get_strokeWidth, GraphicsContext_set_strokeWidth },
-  { "blendMode", GraphicsContext_get_blendMode, GraphicsContext_set_blendMode },
-  { "opacity", GraphicsContext_get_opacity, GraphicsContext_set_opacity },
-  { nullptr, nullptr, nullptr }
+  { "blendMode",   GraphicsContext_get_blendMode,   GraphicsContext_set_blendMode   },
+  { "opacity",     GraphicsContext_get_opacity,     GraphicsContext_set_opacity     },
+  { "palette",     GraphicsContext_get_palette,     GraphicsContext_set_palette     },
+  { nullptr,       nullptr,                         nullptr                         }
 };
 
 } // anonymous namespace
@@ -500,7 +541,4 @@ void register_graphics_context_class(lua_State* L)
   REG_CLASS_PROPERTIES(L, GraphicsContext);
 }
 
-} // namespace script
-} // namespace app
-
-#endif // ENABLE_UI
+}} // namespace app::script

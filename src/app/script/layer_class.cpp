@@ -1,12 +1,12 @@
 // Aseprite
-// Copyright (C) 2018-2023  Igara Studio S.A.
+// Copyright (C) 2018-2024  Igara Studio S.A.
 // Copyright (C) 2018  David Capello
 //
 // This program is distributed under the terms of
 // the End-User License Agreement for Aseprite.
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+  #include "config.h"
 #endif
 
 #include "app/cmd/set_layer_blend_mode.h"
@@ -27,8 +27,7 @@
 #include "doc/tileset.h"
 #include "doc/tilesets.h"
 
-namespace app {
-namespace script {
+namespace app { namespace script {
 
 using namespace doc;
 
@@ -143,8 +142,8 @@ int Layer_get_blendMode(lua_State* L)
   auto layer = get_docobj<Layer>(L, 1);
   if (layer->isImage()) {
     lua_pushinteger(
-      L, int(base::convert_to<app::script::BlendMode>(
-               static_cast<LayerImage*>(layer)->blendMode())));
+      L,
+      int(base::convert_to<app::script::BlendMode>(static_cast<LayerImage*>(layer)->blendMode())));
     return 1;
   }
   else
@@ -250,7 +249,7 @@ int Layer_set_name(lua_State* L)
   auto layer = get_docobj<Layer>(L, 1);
   const char* name = lua_tostring(L, 2);
   if (name) {
-    Tx tx;
+    Tx tx(layer->sprite());
     tx(new cmd::SetLayerName(layer, name));
     tx.commit();
   }
@@ -262,7 +261,7 @@ int Layer_set_opacity(lua_State* L)
   auto layer = get_docobj<Layer>(L, 1);
   const int opacity = lua_tointeger(L, 2);
   if (layer->isImage()) {
-    Tx tx;
+    Tx tx(layer->sprite());
     tx(new cmd::SetLayerOpacity(static_cast<LayerImage*>(layer), opacity));
     tx.commit();
   }
@@ -274,7 +273,7 @@ int Layer_set_blendMode(lua_State* L)
   auto layer = get_docobj<Layer>(L, 1);
   auto blendMode = app::script::BlendMode(lua_tointeger(L, 2));
   if (layer->isImage()) {
-    Tx tx;
+    Tx tx(layer->sprite());
     tx(new cmd::SetLayerBlendMode(static_cast<LayerImage*>(layer),
                                   base::convert_to<doc::BlendMode>(blendMode)));
     tx.commit();
@@ -301,8 +300,8 @@ int Layer_set_stackIndex(lua_State* L)
     ++newStackIndex;
   }
 
-  if (newStackIndex-1 < int(parent->layers().size())) {
-    beforeThis = parent->layers()[std::clamp(newStackIndex-1, 0, (int)parent->layers().size())];
+  if (newStackIndex - 1 < int(parent->layers().size())) {
+    beforeThis = parent->layers()[std::clamp(newStackIndex - 1, 0, (int)parent->layers().size())];
   }
   else {
     beforeThis = nullptr;
@@ -313,7 +312,7 @@ int Layer_set_stackIndex(lua_State* L)
     return 0;
 
   Doc* doc = static_cast<Doc*>(layer->sprite()->document());
-  Tx tx;
+  Tx tx(doc);
   DocApi(doc, tx).restackLayerBefore(layer, parent, beforeThis);
   tx.commit();
   return 0;
@@ -329,7 +328,9 @@ int Layer_set_isEditable(lua_State* L)
 int Layer_set_isVisible(lua_State* L)
 {
   auto layer = get_docobj<Layer>(L, 1);
-  layer->setVisible(lua_toboolean(L, 2));
+  const bool newState = lua_toboolean(L, 2);
+  Doc* doc = static_cast<Doc*>(layer->sprite()->document());
+  doc->setLayerVisibilityWithNotifications(layer, newState);
   return 0;
 }
 
@@ -381,9 +382,8 @@ int Layer_set_parent(lua_State* L)
 
   if (parent) {
     Doc* doc = static_cast<Doc*>(layer->sprite()->document());
-    Tx tx;
-    DocApi(doc, tx).restackLayerAfter(
-      layer, parent, parent->lastLayer());
+    Tx tx(doc);
+    DocApi(doc, tx).restackLayerAfter(layer, parent, parent->lastLayer());
     tx.commit();
   }
   return 0;
@@ -402,7 +402,7 @@ int Layer_set_tileset(lua_State* L)
       tsi = lua_tointeger(L, 2);
 
     if (tsi != tilemap->tilesetIndex()) {
-      Tx tx;
+      Tx tx(layer->sprite());
       tx(new cmd::SetLayerTileset(tilemap, tsi));
       tx.commit();
     }
@@ -411,39 +411,39 @@ int Layer_set_tileset(lua_State* L)
 }
 
 const luaL_Reg Layer_methods[] = {
-  { "__eq", Layer_eq },
-  { "cel", Layer_cel },
-  { nullptr, nullptr }
+  { "__eq",  Layer_eq  },
+  { "cel",   Layer_cel },
+  { nullptr, nullptr   }
 };
 
 const Property Layer_properties[] = {
-  { "id", Layer_get_id, nullptr },
-  { "sprite", Layer_get_sprite, nullptr },
-  { "parent", Layer_get_parent, Layer_set_parent },
-  { "layers", Layer_get_layers, nullptr },
-  { "stackIndex", Layer_get_stackIndex, Layer_set_stackIndex },
-  { "previous", Layer_get_previous, nullptr },
-  { "next", Layer_get_next, nullptr },
-  { "name", Layer_get_name, Layer_set_name },
-  { "opacity", Layer_get_opacity, Layer_set_opacity },
-  { "blendMode", Layer_get_blendMode, Layer_set_blendMode },
-  { "isImage", Layer_get_isImage, nullptr },
-  { "isGroup", Layer_get_isGroup, nullptr },
-  { "isTilemap", Layer_get_isTilemap, nullptr },
-  { "isTransparent", Layer_get_isTransparent, nullptr },
-  { "isBackground", Layer_get_isBackground, nullptr },
-  { "isEditable", Layer_get_isEditable, Layer_set_isEditable },
-  { "isVisible", Layer_get_isVisible, Layer_set_isVisible },
-  { "isContinuous", Layer_get_isContinuous, Layer_set_isContinuous },
-  { "isCollapsed", Layer_get_isCollapsed, Layer_set_isCollapsed },
-  { "isExpanded", Layer_get_isExpanded, Layer_set_isExpanded },
-  { "isReference", Layer_get_isReference, nullptr },
-  { "cels", Layer_get_cels, nullptr },
-  { "color", UserData_get_color<Layer>, UserData_set_color<Layer> },
-  { "data", UserData_get_text<Layer>, UserData_set_text<Layer> },
-  { "properties", UserData_get_properties<Layer>, UserData_set_properties<Layer> },
-  { "tileset", Layer_get_tileset, Layer_set_tileset },
-  { nullptr, nullptr, nullptr }
+  { "id",            Layer_get_id,                   nullptr                        },
+  { "sprite",        Layer_get_sprite,               nullptr                        },
+  { "parent",        Layer_get_parent,               Layer_set_parent               },
+  { "layers",        Layer_get_layers,               nullptr                        },
+  { "stackIndex",    Layer_get_stackIndex,           Layer_set_stackIndex           },
+  { "previous",      Layer_get_previous,             nullptr                        },
+  { "next",          Layer_get_next,                 nullptr                        },
+  { "name",          Layer_get_name,                 Layer_set_name                 },
+  { "opacity",       Layer_get_opacity,              Layer_set_opacity              },
+  { "blendMode",     Layer_get_blendMode,            Layer_set_blendMode            },
+  { "isImage",       Layer_get_isImage,              nullptr                        },
+  { "isGroup",       Layer_get_isGroup,              nullptr                        },
+  { "isTilemap",     Layer_get_isTilemap,            nullptr                        },
+  { "isTransparent", Layer_get_isTransparent,        nullptr                        },
+  { "isBackground",  Layer_get_isBackground,         nullptr                        },
+  { "isEditable",    Layer_get_isEditable,           Layer_set_isEditable           },
+  { "isVisible",     Layer_get_isVisible,            Layer_set_isVisible            },
+  { "isContinuous",  Layer_get_isContinuous,         Layer_set_isContinuous         },
+  { "isCollapsed",   Layer_get_isCollapsed,          Layer_set_isCollapsed          },
+  { "isExpanded",    Layer_get_isExpanded,           Layer_set_isExpanded           },
+  { "isReference",   Layer_get_isReference,          nullptr                        },
+  { "cels",          Layer_get_cels,                 nullptr                        },
+  { "color",         UserData_get_color<Layer>,      UserData_set_color<Layer>      },
+  { "data",          UserData_get_text<Layer>,       UserData_set_text<Layer>       },
+  { "properties",    UserData_get_properties<Layer>, UserData_set_properties<Layer> },
+  { "tileset",       Layer_get_tileset,              Layer_set_tileset              },
+  { nullptr,         nullptr,                        nullptr                        }
 };
 
 } // anonymous namespace
@@ -457,5 +457,4 @@ void register_layer_class(lua_State* L)
   REG_CLASS_PROPERTIES(L, Layer);
 }
 
-} // namespace script
-} // namespace app
+}} // namespace app::script

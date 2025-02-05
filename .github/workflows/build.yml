@@ -6,91 +6,52 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [windows-latest, macos-lates]
         build_type: [RelWithDebInfo]
+        ui: [gui, cli]
+        scripting: [lua, noscripts]
+        exclude:
+          - build_type: Debug
+            ui: gui
+          - build_type: RelWithDebInfo
+            ui: cli
+          - build_type: RelWithDebInfo
+            scripting: noscripts
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
-    - uses: seanmiddleditch/gha-setup-ninja@master
+    - name: Install Dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y \
+          libpixman-1-dev libfreetype6-dev libharfbuzz-dev zlib1g-dev \
+          libx11-dev libxcursor-dev libxi-dev libgl1-mesa-dev libfontconfig1-dev
+    - name: Install Skia
+      if: ${{ matrix.ui == 'gui' }}
+      shell: bash
+      run: |
+        if [[ "${{ runner.os }}" == "Windows" ]] ; then
+          choco install wget -y --no-progress
+          wget https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-Windows-Release-x64.zip
+          unzip Skia-Windows-Release-x64.zip -d skia
+        elif [[ "${{ runner.os }}" == "macOS" ]] ; then
+          wget https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-macOS-Release-arm64.zip
+          unzip Skia-macOS-Release-arm64.zip -d skia
+        else
+          wget https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-Linux-Release-x64-libstdc++.zip
+          unzip Skia-Linux-Release-x64-libstdc++.zip -d skia
+        fi
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1
+      if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
+      with:
+        key: ${{ matrix.os }}-${{ matrix.ui }}-${{ matrix.scripting }}-${{ matrix.build_type }}
+    - uses: aseprite/get-ninja@main
     - uses: ilammy/msvc-dev-cmd@v1
       if: runner.os == 'Windows'
-    - name: Workaround for windows-2022 and cmake 3.25.0
-      if: runner.os == 'Windows'
-      shell: bash
-      run: mv C:/Strawberry/ C:/fuckup.no/
-    - name: Install Dependencies
-      shell: bash
-      run: |
-        if [[ "${{ runner.os }}" == "Linux" ]] ; then
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            libx11-dev libxcursor-dev libxi-dev
-        fi
-    #- name: Download GitHub Release
-      # You may pin to the exact commit or the version.
-      # uses: Legion2/download-release-action@68df3d242858e28a7e6d8b9838a3e6730cdfc422
-      #uses: Legion2/download-release-action@v2.1.0
-      #with:
-        # The repository from where to download the files. Given as <user>/<repository>
-        #repository: aseprite/skia
-        # The version tag of the release
-        #tag: m102-861e4743af
-        # The file which should be downloaded.
-        #file: Skia-Windows-Release-x64.zip
-        # download directory
-        #path: ./
-    - name: Unzip SKIA
-      if: runner.os == 'Windows'
-      run: |
-        #curl -o SKIAa.zip https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-Windows-Release-x64.zip
-        unzip Skia-Windows-Release-x64.zip -d libSKIA
-
-    - name: Cache third-party
-      uses: actions/cache@v3
-      with:
-        key: 3pt-b
-        restore-keys: 3pt-b
-        path: build/third_party/*/*.obj
-    - name: Cache third-party r
-      uses: actions/cache@v3
-      with:
-        key: 3pt
-        path: third_party/*/*.obj
-    - name: Cache laf
-      uses: actions/cache@v3
-      with:
-        key: laf-b
-        restore-keys: laf-b
-        path: build/laf/*/*.obj
-    - name: Cache laf r
-      uses: actions/cache@v3
-      with:
-        key: laf
-        path: laf/*/*.obj
-    - name: Cache objs
-      uses: actions/cache@v3
-      with:
-        key: arc-cmobj
-        path: ./*/src/app/CMakeFiles/*/*.obj
-    - name: Cache objs2
-      uses: actions/cache@v3
-      with:
-        key: opbj-exes-cache
-        restore-key: obj2
-        path: |
-          src/app/CMakeFiles/*/*.obj
-          src/app/CMakeFiles/app-lib.dir/script/*.obj
-          build/CMakeCache.txt
-          CMakeCache.txt
-          src/CMakeCache.txt
-          third_party/IXWebSocket/CMakeFiles/ixwebsocket.dir/ixwebsocket/*.cpp.obj
-          third_party/libarchive/libarchive/CMakeFiles/archive_static.dir/*.obj
-          third_party/jpeg/CMakeFiles/jpeg.dir/*.obj
-          third_party/*/*.exe
-          lib/
-          src/doc/CMakeFiles/doc-lib.dir/*.obj
-          src/ui/CMakeFiles/ui-lib.dir/*.cpp.obj
     - name: Generating Makefiles
       shell: bash
       run: |
@@ -99,27 +60,51 @@ jobs:
         else
           export enable_ccache=on
         fi
+
+        if [[ "${{ matrix.ui }}" == "gui" ]] ; then
+          export laf_backend=skia
+        else
+          export laf_backend=none
+        fi
+
+        if [[ "${{ matrix.scripting }}" == "lua" ]] ; then
+          export enable_scripting=on
+        else
+          export enable_scripting=off
+        fi
+
+        if [[ "${{ runner.os }}" == "macOS" ]] ; then
+          export skia_arch=arm64
+        else
+          export skia_arch=x64
+        fi
+
         cmake -S . -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
           -DENABLE_TESTS=ON \
-          -DLAF_BACKEND=skia \
-          -DSKIA_DIR=./libSKIA \
-          -DSKIA_LIBRARY_DIR=./libSKIA/out/Release-x64 \
-          -DSKIA_LIBRARY=./libSKIA/out/Release-x64/skia.lib \
-          -DENABLE_CCACHE=$enable_ccache
-
+          -DENABLE_SCRIPTING=$enable_scripting \
+          -DENABLE_CCACHE=$enable_ccache \
+          -DLAF_BACKEND=$laf_backend \
+          -DSKIA_DIR=skia \
+          -DSKIA_LIBRARY_DIR=skia/out/Release-$skia_arch
     - name: Compiling
       shell: bash
       run: |
-        cd build && ninja -j 5
-    - name: artifacts main exe
-      uses: actions/upload-artifact@v3
-      with:
-          name: build_outs_exe
-          path: build/bin/*asep*exe
-    - name: artifact build/data dir
-      uses: actions/upload-artifact@v3
-      with:
-          name: prog_data
-          path: build/bin/data/*
-
+        cd build && ninja -j8
+    - name: Running C++ Tests
+      shell: bash
+      run: |
+        if [[ "${{ runner.os }}" == "Linux" ]] ; then
+          export XVFB=xvfb-run
+        fi
+        cd build && $XVFB ctest --output-on-failure
+    - name: Running CLI Tests
+      if: ${{ matrix.scripting == 'lua' }}
+      shell: bash
+      run: |
+        if [[ "${{ runner.os }}" == "Linux" ]] ; then
+          export XVFB=xvfb-run
+        fi
+        export ASEPRITE=$PWD/build/bin/aseprite
+        cd tests
+        $XVFB bash run-tests.sh

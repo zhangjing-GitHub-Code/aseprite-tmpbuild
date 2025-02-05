@@ -1,4 +1,4 @@
--- Copyright (C) 2019-2023  Igara Studio S.A.
+-- Copyright (C) 2019-2024  Igara Studio S.A.
 -- Copyright (C) 2018  David Capello
 --
 -- This file is released under the terms of the MIT license.
@@ -14,6 +14,7 @@ assert(a.width == 32)
 assert(a.height == 64)
 assert(a.colorMode == ColorMode.RGB) -- RGB by default
 assert(a.rowStride == 32*4)
+assert(a.bytesPerPixel == 4)
 assert(a:isEmpty())
 assert(a:isPlain(rgba(0, 0, 0, 0)))
 assert(a:isPlain(0))
@@ -24,6 +25,7 @@ do
   assert(b.height == 64)
   assert(b.colorMode == ColorMode.INDEXED)
   assert(b.rowStride == 32*1)
+  assert(b.bytesPerPixel == 1)
 
   local c = Image{ width=32, height=64, colorMode=ColorMode.INDEXED }
   assert(c.width == 32)
@@ -177,6 +179,29 @@ do
   end
 end
 
+-- Save image from a tilemap's cel
+do
+  local spr = Sprite{ fromFile="sprites/2x2tilemap2x2tile.aseprite" }
+  local tilemapImg = spr.layers[1].cels[1].image
+  local tileset = spr.layers[1].tileset
+  local tileSize = tileset.grid.tileSize
+  tilemapImg:saveAs("_test_save_tilemap_cel_image.png")
+
+  local img = Image{ fromFile="_test_save_tilemap_cel_image.png" }
+  assert(img.width == tilemapImg.width * tileSize.width)
+  assert(img.height == tilemapImg.height * tilemapImg.height)
+  for y=0,img.height-1 do
+    for x=0,img.width-1 do
+      local tmx = x // tileSize.w
+      local tmy = y // tileSize.h
+      local tileImg = tileset:getTile(tilemapImg:getPixel(tmx, tmy))
+      -- Compare each pixel of the saved image with each pixel of the
+      -- corresponding tile of the original sprite's tilemap.
+      assert(img:getPixel(x, y) == tileImg:getPixel(x % tileSize.w, y % tileSize.h))
+    end
+  end
+end
+
 -- Resize image
 do
   local a = Sprite(3, 2)
@@ -305,13 +330,14 @@ do
                     1, 2, 4, 3, 4,
                     3, 4, 0, 0, 0 })
 
+    -- BlendMode.NORMAL by default, so mask color (color=0) is skipped
     b:drawImage(a, Point(0, 3))
     expect_img(b, { 0, 0, 0, 0, 0,
                     0, 1, 2, 1, 2,
                     1, 2, 4, 3, 4,
-                    0, 1, 2, 0, 0 })
+                    3, 1, 2, 0, 0 })
 
-    b:drawImage(a, Point(0, 3)) -- Do nothing
+    b:drawImage(a, Point(0, 3), 255, BlendMode.SRC)
     expect_img(b, { 0, 0, 0, 0, 0,
                     0, 1, 2, 1, 2,
                     1, 2, 4, 3, 4,
@@ -451,3 +477,60 @@ local spr = Sprite(3, 3)   -- Test with sprite (with transactions & undo/redo)
 test_image_flip(app.image)
 app.sprite = nil           -- Test without sprite (without transactions)
 test_image_flip(Image(3, 3))
+
+----------------------------------------------------------------------
+-- Test crash using Image:drawImage() with different color modes
+
+do
+  local tmp = Sprite(3, 3)
+  local pal = Palette(4)
+  pal:setColor(0, Color(0, 0, 0))
+  pal:setColor(1, Color(255, 0, 0))
+  pal:setColor(2, Color(0, 255, 0))
+  pal:setColor(3, Color(0, 0, 255))
+  tmp:setPalette(pal)
+
+  local rgb = Image{ width=2, height=2, colorMode=ColorMode.RGB }
+  local idx = Image{ width=2, height=2, colorMode=ColorMode.INDEXED }
+
+  -- Draw INDEXED -> RGB
+
+  array_to_pixels({ 0, 1,
+                    2, 3 }, idx)
+  rgb:drawImage(idx)
+
+  local k = pal:getColor(0).rgbaPixel
+  local r = pal:getColor(1).rgbaPixel
+  local g = pal:getColor(2).rgbaPixel
+  local b = pal:getColor(3).rgbaPixel
+  expect_img(rgb, { 0, r,
+                    g, b })
+
+  rgb:drawImage(idx, 0, 0, 255, BlendMode.SRC)
+  expect_img(rgb, { k, r,
+                    g, b })
+
+  rgb:drawImage(idx, 1, 0)
+  expect_img(rgb, { k, r,
+                    g, g })
+
+  rgb:drawImage(idx, 1, 0, 255, BlendMode.SRC)
+  expect_img(rgb, { k, k,
+                    g, g })
+
+  -- Draw RGB -> INDEXED
+
+  array_to_pixels({ 0, r,
+                    g, b }, rgb)
+
+  idx:clear(1)
+  idx:drawImage(rgb, 0, 0, 255, BlendMode.SRC)
+  expect_img(idx, { 0, 1,
+                    2, 3 })
+
+  idx:clear(1)
+  idx:drawImage(rgb)
+  expect_img(idx, { 1, 1,
+                    2, 3 })
+
+end
